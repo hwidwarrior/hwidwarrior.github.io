@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sapkowski</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-main: #0d1117;
+            --term-bg: rgba(15, 17, 26, 0.85);
+            --term-border: #30363d;
+            --c-green: #39d353;
+            --c-blue: #2188ff;
+            --c-purple: #bc8cff;
+            --c-cyan: #39c5cf;
+            --c-white: #f0f6fc;
+            --c-gray: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'JetBrains Mono', monospace;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bg-grid {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center;
+            z-index: 0;
+        }
+
+        .aurora {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px; height: 600px;
+            background: radial-gradient(circle, rgba(121, 40, 202, 0.18) 0%, rgba(33, 136, 255, 0.06) 50%, transparent 80%);
+            filter: blur(120px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .top-dock-bar {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(22, 27, 34, 0.9);
+            border: 1px solid var(--term-border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            z-index: 10;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .top-dock-bar.visible {
+            top: 0;
+        }
+
+        .top-dock-bar:hover {
+            background: rgba(30, 35, 45, 0.95);
+        }
+
+        .terminal {
+            position: absolute;
+            z-index: 5;
+            width: 100%;
+            max-width: 680px;
+            background: var(--term-bg);
+            border: 1px solid var(--term-border);
+            border-radius: 12px;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, width 0.3s ease, height 0.3s ease, max-width 0.3s ease;
+        }
+
+        .terminal.maximized {
+            max-width: 100% !important;
+            width: calc(100% - 40px) !important;
+            height: calc(100% - 40px) !important;
+            top: 20px !important;
+            left: 20px !important;
+            transform: none !important;
+        }
+
+        .terminal.minimized {
+            transform: scale(0.3) translateY(-300px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .terminal.closed {
+            transform: scale(0.9) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .term-header {
+            background: rgba(22, 27, 34, 0.9);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--term-border);
+            position: relative;
+            cursor: move;
+            user-select: none;
+        }
+
+        .term-buttons, .dock-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: filter 0.2s ease;
+        }
+        .term-dot:hover { filter: brightness(1.3); }
+        .term-dot.close { background: #ff5f56; }
+        .term-dot.minimize { background: #ffbd2e; }
+        .term-dot.maximize { background: #27c93f; }
+
+        .term-title, .dock-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: var(--c-gray);
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .dock-title { position: static; transform: none; }
+
+        .term-body {
+            padding: 24px;
+            color: var(--c-white);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .prompt-line { 
+            margin-bottom: 20px; 
+            color: var(--c-gray);
+            width: 100%;
+        }
+        .prompt-user { color: var(--c-green); font-weight: bold; }
+        .prompt-command { color: var(--c-white); }
+
+        .fetch-content {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 30px;
+        }
+
+        .ascii-logo {
+            color: var(--c-blue);
+            white-space: pre;
+            font-weight: bold;
+            font-size: 0.95rem;
+            line-height: 1.25;
+            user-select: none;
+        }
+
+        .fetch-info { display: flex; flex-direction: column; }
+
+        .fetch-header { display: inline-flex; margin-bottom: 4px; }
+        .nickname-title {
+            color: var(--c-blue);
+            font-weight: 700;
+            overflow: hidden;
+            border-right: 2px solid var(--c-blue);
+            white-space: nowrap;
+            width: 9ch;
+            animation: termTyping 9s steps(9) infinite, termBlink 0.75s step-end infinite;
+        }
+
+        @keyframes termTyping {
+            0%, 100% { width: 0; }
+            15%, 70% { width: 9ch; }
+            85% { width: 0; }
+        }
+
+        @keyframes termBlink {
+            from, to { border-color: transparent }
+            50% { border-color: var(--c-blue); }
+        }
+
+        .fetch-underline { color: var(--c-gray); letter-spacing: -1px; margin-bottom: 12px; }
+        .info-row { margin-bottom: 6px; }
+        .info-key { color: var(--c-cyan); font-weight: 500; }
+
+        .color-palette-title { margin-top: 18px; margin-bottom: 8px; font-size: 0.8rem; color: var(--c-gray); text-transform: uppercase; letter-spacing: 1px; }
+        .palette-grid { display: flex; gap: 10px; }
+        .palette-btn {
+            width: 42px; height: 32px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none; color: #0f111a; font-size: 1.1rem;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .btn-tg { background-color: #2188ff; }   
+        .btn-gh { background-color: #f0f6fc; }   
+        .btn-inst { background-color: #bc8cff; } 
+        .btn-steam { background-color: #39c5cf; }   
+        .palette-btn:hover { transform: translateY(-3px); filter: brightness(1.15); }
+
+        .reopen-btn {
+            position: relative;
+            z-index: 2;
+            padding: 12px 24px;
+            background: var(--term-bg);
+            border: 1px solid var(--term-border);
+            color: var(--c-white);
+            border-radius: 8px;
+            cursor: pointer;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .reopen-btn:hover { background: rgba(30, 35, 45, 0.9); border-color: var(--c-blue); }
+
+        @media (max-width: 640px) {
+            .fetch-content { grid-template-columns: 1fr; gap: 16px; }
+            .ascii-logo { display: none; }
+            .terminal { position: relative !important; top: auto !important; left: auto !important; transform: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+    <div class="aurora"></div>
+
+    <div class="top-dock-bar" id="topDockBar" onclick="restoreTerminal()">
+        <div class="dock-buttons">
+            <div class="term-dot close" onclick="event.stopPropagation(); closeTerminal()"></div>
+            <div class="term-dot minimize" style="opacity:0.5; cursor:default;"></div>
+            <div class="term-dot maximize" onclick="event.stopPropagation(); maximizeTerminal()"></div>
+        </div>
+        <div class="dock-title">sapkowski@github: ~ (Свернуто)</div>
+    </div>
+
+    <button class="reopen-btn" id="reopenBtn" onclick="reopenTerminal()">
+        <i class="fa-solid fa-terminal" style="margin-right: 8px; color: var(--c-green);"></i> Reopen Terminal
+    </button>
+
+    <div class="terminal" id="terminal">
+        <div class="term-header" id="termHeader">
+            <div class="term-buttons">
+                <div class="term-dot close" onclick="closeTerminal()"></div>
+                <div class="term-dot minimize" onclick="minimizeTerminal()"></div>
+                <div class="term-dot maximize" onclick="maximizeTerminal()"></div>
+            </div>
+            <div class="term-title">sapkowski@github: ~</div>
+        </div>
+        
+        <div class="term-body">
+            <div class="prompt-line">
+                <span class="prompt-user">sapkowski@github</span>:<span class="prompt-command">~$ sfetch</span>
+            </div>
+
+            <div class="fetch-content">
+                <pre class="ascii-logo">
+           .
+          ;W
+          f#E
+        .E#f 
+       iWW;  
+       L##Lffi
+     tLLG##L 
+       ,W#i  
+       j#E.   
+     .D#j     
+    ,WK,      
+    EG.        
+    ,          
+                </pre>
+
+                <div class="fetch-info">
+                    <div class="fetch-header">
+                        <div class="nickname-title">sapkowski</div>
+                    </div>
+                    <div class="fetch-underline">---------</div>
+
+                    <div class="info-row"><span class="info-key">OS</span>: S-OS x86_64</div>
+                    <div class="info-row"><span class="info-key">Kernel</span>: 6.17.0-35-generic</div>
+                    <div class="info-row"><span class="info-key">Shell</span>: zsh 5.9 (custom)</div>
+                    <div class="info-row"><span class="info-key">Locate</span>: ru-RU</div>
+                    <div class="info-row"><span class="info-key">Ecosystem</span>: Live Digital Spaces</div>
+
+                    <div class="color-palette-title">Networks & Links</div>
+                    <div class="palette-grid">
+                        <a href="https://t.me/kzleader" target="_blank" class="palette-btn btn-tg"><i class="fa-brands fa-telegram"></i></a>
+                        <a href="https://github.com/hwidwarrior" target="_blank" class="palette-btn btn-gh"><i class="fa-brands fa-github"></i></a>
+                        <!-- <a href="https://instagram.com/" target="_blank" class="palette-btn btn-inst"><i class="fa-brands fa-instagram"></i></a> -->
+                        <a href="https://steamcommunity.com/id/sapkowski1337/" target="_blank" class="palette-btn btn-steam"><i class="fa-brands fa-steam"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const header = document.getElementById('termHeader');
+        const topDockBar = document.getElementById('topDockBar');
+        const reopenBtn = document.getElementById('reopenBtn');
+
+        function centerTerminal() {
+            if (!terminal.classList.contains('maximized') && !terminal.classList.contains('minimized') && !terminal.classList.contains('closed')) {
+                terminal.style.left = (window.innerWidth - terminal.offsetWidth) / 2 + 'px';
+                terminal.style.top = (window.innerHeight - terminal.offsetHeight) / 2 + 'px';
+            }
+        }
+        window.onload = centerTerminal;
+        window.onresize = centerTerminal;
+
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        header.addEventListener('mousedown', (e) => {
+            if (terminal.classList.contains('maximized')) return;
+            isDragging = true;
+            offsetX = e.clientX - terminal.offsetLeft;
+            offsetY = e.clientY - terminal.offsetTop;
+            header.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            let left = e.clientX - offsetX;
+            let top = e.clientY - offsetY;
+            
+            left = Math.max(0, Math.min(left, window.innerWidth - terminal.offsetWidth));
+            top = Math.max(0, Math.min(top, window.innerHeight - terminal.offsetHeight));
+
+            terminal.style.left = left + 'px';
+            terminal.style.top = top + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            header.style.cursor = 'move';
+        });
+
+        function minimizeTerminal() {
+            terminal.classList.add('minimized');
+            topDockBar.classList.add('visible');
+        }
+
+        function restoreTerminal() {
+            terminal.classList.remove('minimized');
+            topDockBar.classList.remove('visible');
+        }
+
+        function maximizeTerminal() {
+            terminal.classList.toggle('maximized');
+        }
+
+        function closeTerminal() {
+            terminal.classList.remove('minimized');
+            terminal.classList.remove('maximized');
+            terminal.classList.add('closed');
+            topDockBar.classList.remove('visible');
+            setTimeout(() => {
+                reopenBtn.style.display = 'block';
+            }, 300);
+        }
+
+        function reopenTerminal() {
+            reopenBtn.style.display = 'none';
+            terminal.classList.remove('closed');
+            centerTerminal();
+        }
+    </script>
+</body>
+</html>
