@@ -1,1 +1,0 @@
-# hwidwarrior.github.io
